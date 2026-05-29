@@ -1,4 +1,6 @@
-.PHONY: install test run-api lint
+.PHONY: install test run-api lint up down
+
+COMPOSE := docker compose --project-directory . -f deploy/docker-compose.yml
 
 install:
 	pip install -e ".[dev]"
@@ -11,3 +13,9 @@ run-api:
 
 lint:
 	ruff check apps tests
+
+up:
+	$(COMPOSE) up -d --build
+
+down:
+	$(COMPOSE) down
