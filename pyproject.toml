@@ -22,7 +22,8 @@ dependencies = [
     "boto3",
     "arq",
     "python-jose",
-    "passlib",
+    "passlib[bcrypt]",
+    "bcrypt>=4.0.0,<4.1.0",
     "weasyprint",
 ]
 
@@ -32,6 +33,7 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "aiosqlite",
+    "greenlet",
 ]
 
 [tool.setuptools.packages.find]

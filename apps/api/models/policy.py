@@ -46,7 +46,9 @@ class PolicyVersion(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
 
-    policy: Mapped["Policy"] = relationship(back_populates="versions")
+    policy: Mapped["Policy"] = relationship(
+        back_populates="versions", foreign_keys=[policy_id]
+    )
 
 
 Policy.versions = relationship(
