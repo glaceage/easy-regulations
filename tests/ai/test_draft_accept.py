@@ -13,6 +13,7 @@ from apps.api.db.session import get_db
 from apps.api.main import create_app
 from apps.api.models.audit import AuditEvent
 from apps.api.models.base import Base
+from apps.api.models.comment import Comment
 from apps.api.models.llm_suggestion import (
     LlmSuggestion,
     LlmSuggestionAction,
@@ -29,6 +30,7 @@ TEST_TABLES = [
     Policy.__table__,
     PolicyVersion.__table__,
     Revision.__table__,
+    Comment.__table__,
     AuditEvent.__table__,
     LlmSuggestion.__table__,
 ]

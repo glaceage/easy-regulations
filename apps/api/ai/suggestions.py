@@ -26,6 +26,11 @@ def parse_draft_suggestions(raw: list[Any]) -> list[DraftSuggestionItem]:
     return [DraftSuggestionItem.model_validate(item) for item in raw]
 
 
+def parse_comment_patch_suggestion(raw: list[Any]) -> DraftSuggestionItem | None:
+    items = parse_draft_suggestions(raw)
+    return items[0] if items else None
+
+
 def _find_section_span(markdown: str, section_id: str) -> tuple[int, int, re.Match[str]] | None:
     pattern = re.compile(
         rf"^#{{1,6}}\s+.+?\{{#{re.escape(section_id)}\}}\s*$",

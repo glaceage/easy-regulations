@@ -12,6 +12,7 @@ from apps.api.config import Settings, get_settings
 EXPORT_PDF_TASK = "export_pdf_task"
 DOCX_TO_MARKDOWN_TASK = "docx_to_markdown_task"
 GENERATE_DRAFT_TASK = "generate_draft_task"
+COMMENT_PATCH_TASK = "comment_patch_task"
 
 
 def _sync_jobs_enabled(settings: Settings) -> bool:
@@ -75,6 +76,26 @@ async def enqueue_generate_draft(revision_id: str, settings: Settings | None = N
         job = await pool.enqueue_job(GENERATE_DRAFT_TASK, revision_id)
         if job is None:
             raise RuntimeError("Failed to enqueue draft generation job")
+        return job.job_id
+    finally:
+        await pool.close()
+
+
+async def enqueue_comment_patch(comment_id: str, settings: Settings | None = None) -> str:
+    settings = settings or get_settings()
+
+    if _sync_jobs_enabled(settings):
+        from apps.worker.tasks.llm import comment_patch_task
+
+        await comment_patch_task.coroutine({}, comment_id)
+        return f"sync-{comment_id}"
+
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    pool = await create_pool(redis_settings)
+    try:
+        job = await pool.enqueue_job(COMMENT_PATCH_TASK, comment_id)
+        if job is None:
+            raise RuntimeError("Failed to enqueue comment patch job")
         return job.job_id
     finally:
         await pool.close()
