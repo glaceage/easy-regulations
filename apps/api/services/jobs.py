@@ -11,6 +11,7 @@ from apps.api.config import Settings, get_settings
 
 EXPORT_PDF_TASK = "export_pdf_task"
 DOCX_TO_MARKDOWN_TASK = "docx_to_markdown_task"
+GENERATE_DRAFT_TASK = "generate_draft_task"
 
 
 def _sync_jobs_enabled(settings: Settings) -> bool:
@@ -54,6 +55,26 @@ async def enqueue_docx_import(
         job = await pool.enqueue_job(DOCX_TO_MARKDOWN_TASK, revision_id, docx_key)
         if job is None:
             raise RuntimeError("Failed to enqueue docx import job")
+        return job.job_id
+    finally:
+        await pool.close()
+
+
+async def enqueue_generate_draft(revision_id: str, settings: Settings | None = None) -> str:
+    settings = settings or get_settings()
+
+    if _sync_jobs_enabled(settings):
+        from apps.worker.tasks.llm import generate_draft_task
+
+        await generate_draft_task.coroutine({}, revision_id)
+        return f"sync-{revision_id}"
+
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    pool = await create_pool(redis_settings)
+    try:
+        job = await pool.enqueue_job(GENERATE_DRAFT_TASK, revision_id)
+        if job is None:
+            raise RuntimeError("Failed to enqueue draft generation job")
         return job.job_id
     finally:
         await pool.close()
