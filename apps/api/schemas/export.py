@@ -7,6 +7,11 @@ class PublishRequestResponse(BaseModel):
     job_id: str
 
 
+class ImportDocxResponse(BaseModel):
+    job_id: str
+    docx_key: str
+
+
 class JobStatusResponse(BaseModel):
     job_id: str
     status: str

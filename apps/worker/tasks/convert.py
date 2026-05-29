@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import subprocess
+import tempfile
 import uuid
 from typing import Any
 
@@ -11,6 +15,7 @@ from apps.api.db.session import SessionLocal
 from apps.api.models.policy import Policy
 from apps.api.models.revision import Revision
 from apps.api.services.export import html_to_pdf, markdown_to_html
+from apps.api.services.sections import ensure_section_ids
 from apps.api.services.storage import StorageService
 
 
@@ -51,4 +56,50 @@ async def export_pdf_task(ctx: dict[str, Any], revision_id: str) -> dict[str, st
     return {"pdf_key": pdf_key, "revision_id": revision_id}
 
 
+def run_pandoc_docx_to_gfm(docx_bytes: bytes) -> str:
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
+        tmp.write(docx_bytes)
+        tmp_path = tmp.name
+    try:
+        result = subprocess.run(
+            ["pandoc", "-f", "docx", "-t", "gfm", tmp_path],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+    finally:
+        os.unlink(tmp_path)
+
+
+async def docx_to_markdown_task(
+    ctx: dict[str, Any], revision_id: str, docx_key: str
+) -> dict[str, str | int]:
+    rid = uuid.UUID(revision_id)
+    storage = StorageService()
+    docx_bytes = storage.get_bytes(docx_key)
+    raw_markdown = run_pandoc_docx_to_gfm(docx_bytes)
+    markdown, section_tree = ensure_section_ids(raw_markdown)
+    md_bytes = markdown.encode("utf-8")
+
+    async with SessionLocal() as db:
+        result = await db.execute(select(Revision).where(Revision.id == rid))
+        revision = result.scalar_one_or_none()
+        if revision is None:
+            raise ValueError(f"Revision {revision_id} not found")
+
+        prefix = f"policies/{revision.policy_id}/{revision.id}/"
+        md_key = storage.put_bytes(md_bytes, suffix=".md", prefix=prefix)
+        revision.draft_markdown_key = md_key
+        revision.draft_content_sha256 = hashlib.sha256(md_bytes).hexdigest()
+        await db.commit()
+
+    return {
+        "revision_id": revision_id,
+        "draft_markdown_key": md_key,
+        "section_count": len(section_tree),
+    }
+
+
 export_pdf_task = func(export_pdf_task, keep_result=3600)
+docx_to_markdown_task = func(docx_to_markdown_task, keep_result=3600)

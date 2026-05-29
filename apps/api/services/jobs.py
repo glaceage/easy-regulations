@@ -10,6 +10,7 @@ from arq.jobs import Job, JobStatus
 from apps.api.config import Settings, get_settings
 
 EXPORT_PDF_TASK = "export_pdf_task"
+DOCX_TO_MARKDOWN_TASK = "docx_to_markdown_task"
 
 
 def _sync_jobs_enabled(settings: Settings) -> bool:
@@ -31,6 +32,28 @@ async def enqueue_export_pdf(revision_id: str, settings: Settings | None = None)
         job = await pool.enqueue_job(EXPORT_PDF_TASK, revision_id)
         if job is None:
             raise RuntimeError("Failed to enqueue export job")
+        return job.job_id
+    finally:
+        await pool.close()
+
+
+async def enqueue_docx_import(
+    revision_id: str, docx_key: str, settings: Settings | None = None
+) -> str:
+    settings = settings or get_settings()
+
+    if _sync_jobs_enabled(settings):
+        from apps.worker.tasks.convert import docx_to_markdown_task
+
+        await docx_to_markdown_task.coroutine({}, revision_id, docx_key)
+        return f"sync-{revision_id}"
+
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    pool = await create_pool(redis_settings)
+    try:
+        job = await pool.enqueue_job(DOCX_TO_MARKDOWN_TASK, revision_id, docx_key)
+        if job is None:
+            raise RuntimeError("Failed to enqueue docx import job")
         return job.job_id
     finally:
         await pool.close()
