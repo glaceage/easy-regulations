@@ -7,6 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.models.comment import Comment, CommentStatus
 
 
+async def assert_can_publish(revision_id: uuid.UUID, db: AsyncSession) -> None:
+    """Validate publish gate: all comments resolved per pending_publish rules."""
+    await assert_can_enter_pending_publish(revision_id, db)
+
+
 async def assert_can_enter_pending_publish(revision_id: uuid.UUID, db: AsyncSession) -> None:
     result = await db.execute(select(Comment).where(Comment.revision_id == revision_id))
     comments = result.scalars().all()

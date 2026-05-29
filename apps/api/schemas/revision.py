@@ -30,3 +30,12 @@ class RevisionResponse(BaseModel):
 
 class TransitionRequest(BaseModel):
     target_state: RevisionState
+
+
+class PublishResponse(BaseModel):
+    revision_id: uuid.UUID
+    state: RevisionState
+    policy_version_id: uuid.UUID
+    version_label: str
+    pdf_key: str
+    markdown_key: str
