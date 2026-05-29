@@ -1,0 +1,32 @@
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from apps.api.models.revision import RevisionState
+
+
+class RevisionCreate(BaseModel):
+    policy_id: uuid.UUID
+    change_brief: str = ""
+    target_version_label: str | None = Field(default=None, max_length=32)
+
+
+class RevisionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    policy_id: uuid.UUID
+    base_version_id: uuid.UUID
+    owner_user_id: uuid.UUID
+    state: RevisionState
+    change_brief: str
+    draft_markdown_key: str
+    draft_content_sha256: str
+    target_version_label: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class TransitionRequest(BaseModel):
+    target_state: RevisionState
