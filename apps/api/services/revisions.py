@@ -10,6 +10,7 @@ from apps.api.models.policy import Policy, PolicyStatus, PolicyVersion
 from apps.api.models.revision import Revision, RevisionState, can_transition
 from apps.api.models.user import User, UserRole
 from apps.api.schemas.revision import RevisionCreate
+from apps.api.services import workflow
 
 CHANGE_BRIEF_MIN_LENGTH = 10
 EMPTY_CONTENT_SHA256 = hashlib.sha256(b"").hexdigest()
@@ -103,6 +104,9 @@ async def transition_revision(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"离开草稿状态前，变更说明至少需要 {CHANGE_BRIEF_MIN_LENGTH} 个字符",
         )
+
+    if target_state == RevisionState.PENDING_PUBLISH:
+        await workflow.assert_can_enter_pending_publish(revision_id, db)
 
     revision.state = target_state
     db.add(
