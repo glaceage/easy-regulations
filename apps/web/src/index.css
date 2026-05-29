@@ -1,0 +1,350 @@
+:root {
+  --color-bg: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-border: #d8dee6;
+  --color-text: #1a2332;
+  --color-text-muted: #5c6b7a;
+  --color-primary: #0b4f6c;
+  --color-primary-hover: #083d55;
+  --color-accent: #c45c26;
+  --color-danger: #b42318;
+  --color-success: #0d7a4a;
+  --font-sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --radius: 6px;
+  --shadow: 0 1px 3px rgba(26, 35, 50, 0.08);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0 1.5rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+
+.app-header a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-header nav {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.app-header nav a {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.app-header nav a:hover {
+  color: #fff;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.page-title {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: 2px solid rgba(11, 79, 108, 0.25);
+  border-color: var(--color-primary);
+}
+
+.error-banner {
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  color: var(--color-danger);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  font-size: 14px;
+}
+
+.info-banner {
+  background: #eef6fa;
+  border: 1px solid #b8d4e3;
+  color: var(--color-primary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  font-size: 14px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th {
+  background: #eef1f4;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.data-table tbody tr:hover {
+  background: #f8fafb;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.meta-item dt {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 0.2rem;
+}
+
+.meta-item dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.workspace-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .workspace-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.comments-panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.comment-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-meta {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-bottom: 0.25rem;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #e8eef2 0%, #f4f6f8 50%, #dfe8ed 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-card h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+  color: var(--color-primary);
+}
+
+.login-card .subtitle {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin: 0 0 1.5rem;
+}
+
+.state-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-draft {
+  background: #eef1f4;
+  color: #3d4f5f;
+}
+
+.badge-consult {
+  background: #e8f2f8;
+  color: var(--color-primary);
+}
+
+.badge-revise {
+  background: #fff4e6;
+  color: #9a5b00;
+}
+
+.badge-pending {
+  background: #fef3e6;
+  color: var(--color-accent);
+}
+
+.badge-published {
+  background: #e6f4ed;
+  color: var(--color-success);
+}
+
+.badge-cancelled {
+  background: #f3f4f6;
+  color: var(--color-text-muted);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.w-md-editor {
+  border-radius: var(--radius) !important;
+  border-color: var(--color-border) !important;
+}
