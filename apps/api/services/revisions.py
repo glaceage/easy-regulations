@@ -5,12 +5,12 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.models.audit import AuditEvent
 from apps.api.models.policy import Policy, PolicyStatus, PolicyVersion
 from apps.api.models.revision import Revision, RevisionState, can_transition
 from apps.api.models.user import User, UserRole
 from apps.api.schemas.revision import RevisionCreate
 from apps.api.services import workflow
+from apps.api.services.audit import record_event
 
 CHANGE_BRIEF_MIN_LENGTH = 10
 EMPTY_CONTENT_SHA256 = hashlib.sha256(b"").hexdigest()
@@ -109,17 +109,16 @@ async def transition_revision(
         await workflow.assert_can_enter_pending_publish(revision_id, db)
 
     revision.state = target_state
-    db.add(
-        AuditEvent(
-            actor_id=user.id,
-            action="revision.transition",
-            resource_type="revision",
-            resource_id=str(revision.id),
-            payload={
-                "from_state": current_state.value,
-                "to_state": target_state.value,
-            },
-        )
+    await record_event(
+        db,
+        actor_id=user.id,
+        action="revision.transition",
+        resource_type="revision",
+        resource_id=str(revision.id),
+        payload={
+            "from_state": current_state.value,
+            "to_state": target_state.value,
+        },
     )
     await db.commit()
     await db.refresh(revision)

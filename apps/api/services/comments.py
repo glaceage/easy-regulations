@@ -9,6 +9,7 @@ from apps.api.models.revision import RevisionState
 from apps.api.models.user import User, UserRole
 from apps.api.schemas.comment import CommentCreate, CommentUpdate
 from apps.api.services import revisions as revision_service
+from apps.api.services.audit import record_event
 
 COMMENT_SUBMIT_STATES = {RevisionState.IN_CONSULTATION, RevisionState.IN_REVISION}
 COMMENT_CREATE_ROLES = {
@@ -65,6 +66,17 @@ async def create_comment(
         is_mandatory_reviewer=user.role == UserRole.REVIEWER,
     )
     db.add(comment)
+    await record_event(
+        db,
+        actor_id=user.id,
+        action="comment.create",
+        resource_type="comment",
+        resource_id=str(comment.id),
+        payload={
+            "revision_id": str(revision_id),
+            "section_id": data.section_id,
+        },
+    )
     await db.commit()
     await db.refresh(comment)
     return comment
@@ -121,6 +133,17 @@ async def update_comment(
     if data.resolution_note is not None:
         comment.resolution_note = data.resolution_note
 
+    await record_event(
+        db,
+        actor_id=user.id,
+        action="comment.update",
+        resource_type="comment",
+        resource_id=str(comment.id),
+        payload={
+            "revision_id": str(comment.revision_id),
+            "status": comment.status.value,
+        },
+    )
     await db.commit()
     await db.refresh(comment)
     return comment
