@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     app.include_router(ai_router)
 
     @app.get("/health")
+    @app.get("/api/health")
     async def health():
         return {"status": "ok"}
 
