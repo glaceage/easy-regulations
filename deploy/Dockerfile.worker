@@ -11,6 +11,8 @@ RUN apt-get update \
         libffi-dev \
         shared-mime-info \
         pandoc \
+        fontconfig \
+        fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml alembic.ini ./

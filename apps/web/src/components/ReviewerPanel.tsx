@@ -1,6 +1,13 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { RevisionReviewer } from "../api/types";
+import type { FeedbackStatus, RevisionReviewer } from "../api/types";
+
+const FEEDBACK_LABEL: Record<FeedbackStatus, string> = {
+  awaiting: "待反馈",
+  optional: "可反馈",
+  submitted: "已提交意见",
+  closed: "已结束",
+};
 
 export function ReviewerPanel({
   revisionId,
@@ -72,6 +79,9 @@ export function ReviewerPanel({
               <div className="comment-meta">
                 {r.display_name}（{r.username}）
                 {r.is_mandatory ? " · 必反馈" : " · 参考"}
+                {" · "}
+                {FEEDBACK_LABEL[r.feedback_status]}
+                {r.comment_count > 0 ? `（${r.comment_count} 条意见）` : ""}
               </div>
               {canManage && (
                 <button

@@ -9,6 +9,7 @@ from apps.api.routers.policies import router as policies_router
 from apps.api.routers.revisions import router as revisions_router
 from apps.api.routers.reviewers import notification_router
 from apps.api.routers.reviewers import revision_router as reviewers_revision_router
+from apps.api.routers.reviews import router as reviews_router
 
 
 def create_app() -> FastAPI:
@@ -21,6 +22,7 @@ def create_app() -> FastAPI:
     app.include_router(export_router)
     app.include_router(ai_router)
     app.include_router(reviewers_revision_router)
+    app.include_router(reviews_router)
     app.include_router(notification_router)
 
     @app.get("/health")

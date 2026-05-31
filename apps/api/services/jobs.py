@@ -115,18 +115,27 @@ async def get_job_status(job_id: str, settings: Settings | None = None) -> dict[
         }
 
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    pool = await create_pool(redis_settings)
+    try:
+        pool = await create_pool(redis_settings)
+    except Exception as exc:  # noqa: BLE001 - status poll must not 500 on queue outage
+        return {
+            "job_id": job_id,
+            "status": "unavailable",
+            "result": None,
+            "error": f"无法连接任务队列：{exc}",
+        }
+
     try:
         job = Job(job_id, pool)
-        status = await job.status()
+        job_state = await job.status()
         payload: dict[str, Any] = {
             "job_id": job_id,
-            "status": status.value,
+            "status": job_state.value,
             "result": None,
             "error": None,
         }
 
-        if status == JobStatus.complete:
+        if job_state == JobStatus.complete:
             try:
                 info = await job.result_info()
             except DeserializationError:

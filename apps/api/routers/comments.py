@@ -9,6 +9,7 @@ from apps.api.schemas.ai import DraftJobResponse
 from apps.api.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
 from apps.api.services import ai as ai_service
 from apps.api.services import comments as comment_service
+from apps.api.services import revisions as revision_service
 from apps.api.services.auth import get_current_user
 
 revision_router = APIRouter(prefix="/api/revisions", tags=["comments"])
@@ -31,7 +32,7 @@ async def list_revision_comments(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
+    await revision_service.get_viewable_revision(db, revision_id, current_user)
     return await comment_service.list_comments(db, revision_id)
 
 

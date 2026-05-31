@@ -1,19 +1,21 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { api, isAuthenticated, setToken } from "../api/client";
+import { getAuthRole, getHomeRoute } from "../lib/auth";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get("expired") === "1";
-  const returnTo = searchParams.get("from") || "/policies";
+  const returnTo = searchParams.get("from");
+  const defaultHome = getHomeRoute(getAuthRole());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated()) {
-    return <Navigate to="/policies" replace />;
+    return <Navigate to={returnTo?.startsWith("/") ? returnTo : defaultHome} replace />;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -23,7 +25,12 @@ export function LoginPage() {
     try {
       const { access_token } = await api.login(username, password);
       setToken(access_token);
-      navigate(returnTo.startsWith("/") ? returnTo : "/policies");
+      const role = getAuthRole();
+      const destination =
+        returnTo && returnTo.startsWith("/") && returnTo !== "/"
+          ? returnTo
+          : getHomeRoute(role);
+      navigate(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {

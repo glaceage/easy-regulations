@@ -8,8 +8,10 @@ from apps.api.models.comment import Comment, CommentStatus
 from apps.api.models.revision import RevisionState
 from apps.api.models.user import User, UserRole
 from apps.api.schemas.comment import CommentCreate, CommentUpdate
+from apps.api.services import reviewers as reviewer_service
 from apps.api.services import revisions as revision_service
 from apps.api.services.audit import record_event
+from apps.api.services.notifications import notify_users
 
 COMMENT_SUBMIT_STATES = {RevisionState.IN_CONSULTATION, RevisionState.IN_REVISION}
 COMMENT_CREATE_ROLES = {
@@ -29,13 +31,16 @@ def _has_resolution_note(note: str | None) -> bool:
     return bool(note and note.strip())
 
 
-def _validate_status_resolution(status: CommentStatus, resolution_note: str | None) -> None:
-    if status in {CommentStatus.REJECTED, CommentStatus.DEFERRED} and not _has_resolution_note(
-        resolution_note
-    ):
+def _validate_status_resolution(
+    comment_status: CommentStatus, resolution_note: str | None
+) -> None:
+    if comment_status in {
+        CommentStatus.REJECTED,
+        CommentStatus.DEFERRED,
+    } and not _has_resolution_note(resolution_note):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="rejected or deferred comments require resolution_note",
+            detail="不予修改或暂缓的意见必须填写处理说明",
         )
 
 
@@ -57,6 +62,18 @@ async def create_comment(
             detail="当前修订状态不允许提交意见",
         )
 
+    if user.role == UserRole.REVIEWER:
+        if revision.state != RevisionState.IN_CONSULTATION:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="评审人仅在征求意见阶段可提交意见",
+            )
+        if not await reviewer_service.is_assigned_reviewer(db, revision_id, user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您未被指定为该修订的评审人",
+            )
+
     comment = Comment(
         revision_id=revision_id,
         section_id=data.section_id,
@@ -77,6 +94,19 @@ async def create_comment(
             "section_id": data.section_id,
         },
     )
+
+    if user.role == UserRole.REVIEWER and revision.owner_user_id != user.id:
+        await notify_users(
+            db,
+            user_ids=[revision.owner_user_id],
+            message=(
+                f"评审人 {user.display_name or user.username} "
+                f"在「{data.section_id}」提交了评审意见。"
+            ),
+            revision_id=revision_id,
+            policy_id=revision.policy_id,
+        )
+
     await db.commit()
     await db.refresh(comment)
     return comment

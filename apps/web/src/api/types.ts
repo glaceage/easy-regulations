@@ -115,6 +115,8 @@ export interface PolicyCreate {
   category?: string;
 }
 
+export type FeedbackStatus = "awaiting" | "optional" | "submitted" | "closed";
+
 export interface RevisionReviewer {
   id: string;
   revision_id: string;
@@ -124,9 +126,26 @@ export interface RevisionReviewer {
   is_mandatory: boolean;
   note: string;
   created_at: string;
+  comment_count: number;
+  feedback_status: FeedbackStatus;
 }
 
-export interface NotificationItem {
+export interface ReviewAssignment {
+  assignment_id: string;
+  revision_id: string;
+  policy_id: string;
+  policy_code: string;
+  policy_title: string;
+  revision_state: RevisionState;
+  target_version_label: string;
+  change_brief: string;
+  is_mandatory: boolean;
+  assigned_at: string;
+  my_comment_count: number;
+  feedback_status: FeedbackStatus;
+}
+
+export interface Notification {
   id: string;
   message: string;
   revision_id: string | null;
@@ -134,6 +153,8 @@ export interface NotificationItem {
   read: boolean;
   created_at: string;
 }
+
+export type NotificationItem = Notification;
 
 export interface ApiError {
   detail?: string | { msg: string }[];

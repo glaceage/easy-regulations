@@ -320,6 +320,10 @@ export function RevisionWorkspacePage() {
 
   async function handleResolveComment(commentId: string, status: CommentStatus, note: string) {
     if (!id) return;
+    if ((status === "rejected" || status === "deferred") && !note.trim()) {
+      setError("不予修改或暂缓的意见必须填写处理说明。");
+      return;
+    }
     setCommentBusyId(commentId);
     setError(null);
     setInfo(null);

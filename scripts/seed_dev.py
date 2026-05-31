@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from apps.api.config import get_settings
 from apps.api.models.policy import Policy, PolicyStatus, PolicyVersion
 from apps.api.models.revision import Revision, RevisionState
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 from apps.api.services.storage import StorageService
 
@@ -116,8 +117,10 @@ async def _ensure_sample_policy(
     storage: StorageService,
 ) -> None:
     result = await session.execute(select(Policy).where(Policy.code == POLICY_CODE))
-    if result.scalar_one_or_none() is not None:
+    policy = result.scalar_one_or_none()
+    if policy is not None:
         print(f"  制度已存在: {POLICY_CODE}")
+        await _ensure_consultation_demo(session, user_map, policy, storage)
         return
 
     policy = Policy(
@@ -169,6 +172,64 @@ async def _ensure_sample_policy(
     )
     session.add(revision)
     print(f"  创建制度: {POLICY_CODE}（v1.0 已发布 + 草稿修订 v2.0）")
+    await _ensure_consultation_demo(session, user_map, policy, storage)
+
+
+async def _ensure_consultation_demo(
+    session: AsyncSession,
+    user_map: dict[str, User],
+    policy: Policy,
+    storage: StorageService,
+) -> None:
+    """Ensure a revision in consultation with reviewer1 assigned for demo."""
+    result = await session.execute(
+        select(Revision).where(
+            Revision.policy_id == policy.id,
+            Revision.state == RevisionState.IN_CONSULTATION,
+        )
+    )
+    consultation = result.scalar_one_or_none()
+    if consultation is None:
+        revision_id = uuid.uuid4()
+        draft_bytes = DRAFT_MD.encode("utf-8")
+        draft_key = f"drafts/{revision_id}.md"
+        draft_sha256 = _put_object(storage, draft_key, draft_bytes)
+        consultation = Revision(
+            id=revision_id,
+            policy_id=policy.id,
+            base_version_id=policy.current_version_id,
+            owner_user_id=user_map["owner1"].id,
+            state=RevisionState.IN_CONSULTATION,
+            change_brief=CHANGE_BRIEF,
+            draft_markdown_key=draft_key,
+            draft_content_sha256=draft_sha256,
+            target_version_label="v2.0-征求",
+        )
+        session.add(consultation)
+        await session.flush()
+        print("  创建征求意见示例修订: v2.0-征求（in_consultation）")
+
+    reviewer = user_map.get("reviewer1")
+    if reviewer is None:
+        return
+
+    existing = await session.execute(
+        select(RevisionReviewer).where(
+            RevisionReviewer.revision_id == consultation.id,
+            RevisionReviewer.user_id == reviewer.id,
+        )
+    )
+    if existing.scalar_one_or_none() is None:
+        session.add(
+            RevisionReviewer(
+                revision_id=consultation.id,
+                user_id=reviewer.id,
+                is_mandatory=True,
+                assigned_by_id=user_map["owner1"].id,
+                note="多部门征求意见示例",
+            )
+        )
+        print("  已指定 reviewer1 为 v2.0-征求 的必反馈评审人")
 
 
 async def seed() -> None:

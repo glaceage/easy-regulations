@@ -36,7 +36,25 @@ async def notify_users(
         )
 
 
+NOTIFICATION_READ_MARKER = "notification.read_marker"
+
+
+async def _last_read_at(db: AsyncSession, user_id: uuid.UUID):
+    """Latest 'mark all read' timestamp for the user (append-only marker)."""
+    result = await db.execute(
+        select(AuditEvent.created_at)
+        .where(
+            AuditEvent.action == NOTIFICATION_READ_MARKER,
+            AuditEvent.resource_id == str(user_id),
+        )
+        .order_by(AuditEvent.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_notifications(db: AsyncSession, user_id: uuid.UUID) -> list[NotificationResponse]:
+    last_read_at = await _last_read_at(db, user_id)
     result = await db.execute(
         select(AuditEvent)
         .where(
@@ -50,14 +68,37 @@ async def list_notifications(db: AsyncSession, user_id: uuid.UUID) -> list[Notif
     items: list[NotificationResponse] = []
     for event in events:
         payload = event.payload or {}
+        is_read = bool(payload.get("read", False))
+        if not is_read and last_read_at is not None and event.created_at <= last_read_at:
+            is_read = True
         items.append(
             NotificationResponse(
                 id=event.id,
                 message=str(payload.get("message", "")),
                 revision_id=payload.get("revision_id"),
                 policy_id=payload.get("policy_id"),
-                read=bool(payload.get("read", False)),
+                read=is_read,
                 created_at=event.created_at,
             )
         )
     return items
+
+
+async def mark_all_read(db: AsyncSession, user_id: uuid.UUID) -> int:
+    """Record an append-only read marker; subsequent reads compute read state."""
+    await record_event(
+        db,
+        actor_id=user_id,
+        action=NOTIFICATION_READ_MARKER,
+        resource_type="user",
+        resource_id=str(user_id),
+        payload={"user_id": str(user_id)},
+    )
+    await db.commit()
+    unread = await db.execute(
+        select(AuditEvent.id).where(
+            AuditEvent.action == "notification.todo",
+            AuditEvent.resource_id == str(user_id),
+        )
+    )
+    return len(list(unread.scalars().all()))

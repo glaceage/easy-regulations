@@ -43,11 +43,7 @@ async def list_revision_suggestions(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
-    revision = await revision_service.get_revision(db, revision_id)
-    if revision is None:
-        raise HTTPException(status_code=404, detail="修订任务不存在")
-
+    await revision_service.get_viewable_revision(db, revision_id, current_user)
     suggestions = await ai_service.list_suggestions(db, revision_id)
     return suggestions
 

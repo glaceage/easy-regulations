@@ -13,6 +13,7 @@ import type {
   PublishResponse,
   Revision,
   RevisionReviewer,
+  ReviewAssignment,
   TokenResponse,
 } from "./types";
 
@@ -107,11 +108,11 @@ export const api = {
   },
 
   listPolicies() {
-    return request<Policy[]>("/policies", { auth: false });
+    return request<Policy[]>("/policies");
   },
 
   getPolicy(id: string) {
-    return request<Policy>(`/policies/${id}`, { auth: false });
+    return request<Policy>(`/policies/${id}`);
   },
 
   listPolicyRevisions(policyId: string) {
@@ -207,6 +208,16 @@ export const api = {
     });
   },
 
+  updateRevisionMeta(
+    revisionId: string,
+    update: { change_brief?: string; target_version_label?: string },
+  ) {
+    return request<Revision>(`/revisions/${revisionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(update),
+    });
+  },
+
   createPolicy(body: PolicyCreate) {
     return request<Policy>("/policies", {
       method: "POST",
@@ -231,6 +242,10 @@ export const api = {
     return request<RevisionReviewer[]>(`/revisions/${revisionId}/reviewers`);
   },
 
+  listReviewAssignments() {
+    return request<ReviewAssignment[]>("/reviews/assignments");
+  },
+
   assignReviewer(revisionId: string, username: string, isMandatory = true) {
     return request<RevisionReviewer>(`/revisions/${revisionId}/reviewers`, {
       method: "POST",
@@ -246,5 +261,11 @@ export const api = {
 
   listNotifications() {
     return request<NotificationItem[]>("/notifications");
+  },
+
+  markNotificationsRead() {
+    return request<{ marked: number }>("/notifications/read", {
+      method: "POST",
+    });
   },
 };

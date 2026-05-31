@@ -15,8 +15,15 @@ def test_markdown_to_html_includes_title():
 
 def test_markdown_to_html_has_chinese_css():
     html = markdown_to_html("内容", title="测试", version="1.0")
-    assert "PingFang SC" in html
+    assert "Noto Sans CJK SC" in html
     assert 'lang="zh-CN"' in html
+
+
+def test_markdown_to_html_strips_section_anchor_from_headings():
+    html = markdown_to_html("# 总则 {#sec-zongze}\n\n正文。", title="测试", version="1.0")
+    assert "总则" in html
+    assert "sec-zongze" not in html
+    assert "{#" not in html
 
 
 def test_html_to_pdf_raises_clear_import_error(monkeypatch):

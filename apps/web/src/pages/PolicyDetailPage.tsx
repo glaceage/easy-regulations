@@ -3,13 +3,15 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { Policy, Revision } from "../api/types";
 import { StateBadge } from "../components/StateBadge";
-import { getAuthRole, isOwnerLike } from "../lib/auth";
+import { getAuthRole, isOwnerLike, isReviewer } from "../lib/auth";
 import { getRevisionPrimaryRoute } from "../lib/revisionWorkflow";
 
 export function PolicyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const ownerLike = isOwnerLike(getAuthRole());
+  const role = getAuthRole();
+  const ownerLike = isOwnerLike(role);
+  const reviewer = isReviewer(role);
 
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [revisions, setRevisions] = useState<Revision[]>([]);
@@ -99,6 +101,32 @@ export function PolicyDetailPage() {
   );
 
   function renderRevisionActions(rev: Revision) {
+    if (reviewer) {
+      if (rev.state === "in_consultation") {
+        return (
+          <Link
+            to={`/revisions/${rev.id}/consultation`}
+            className="btn btn-primary"
+            style={{ fontSize: 13 }}
+          >
+            进入评审
+          </Link>
+        );
+      }
+      if (rev.state === "published" || rev.state === "cancelled") {
+        return (
+          <Link to={`/revisions/${rev.id}/view`} className="btn btn-secondary" style={{ fontSize: 13 }}>
+            查看
+          </Link>
+        );
+      }
+      return (
+        <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+          等待经办人推进流程
+        </span>
+      );
+    }
+
     const primaryRoute = getRevisionPrimaryRoute(rev.id, rev.state);
     switch (rev.state) {
       case "in_consultation":
@@ -141,7 +169,15 @@ export function PolicyDetailPage() {
       </p>
       <h1 className="page-title">{policy.title}</h1>
 
-      {activeWorkspaceRevision && (
+      {reviewer && (
+        <div className="toolbar" style={{ marginBottom: "1rem" }}>
+          <Link to="/reviews" className="btn btn-primary">
+            我的评审任务
+          </Link>
+        </div>
+      )}
+
+      {activeWorkspaceRevision && ownerLike && (
         <div className="toolbar" style={{ marginBottom: "1rem" }}>
           <Link
             to={getRevisionPrimaryRoute(activeWorkspaceRevision.id, activeWorkspaceRevision.state)}

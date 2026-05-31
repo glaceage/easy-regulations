@@ -8,7 +8,7 @@ import type { Comment, Revision } from "../api/types";
 import { StateBadge } from "../components/StateBadge";
 import { SectionLabel } from "../components/SectionLabel";
 import { WorkflowStepper } from "../components/WorkflowStepper";
-import { getAuthRole, isPolicyAdmin } from "../lib/auth";
+import { canPublish, getAuthRole } from "../lib/auth";
 
 const COMMENT_STATUS: Record<string, string> = {
   open: "待处理",
@@ -37,7 +37,7 @@ async function pollJob(jobId: string, timeoutMs = 120_000): Promise<{ pdf_key?: 
 export function PublishPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const admin = isPolicyAdmin(getAuthRole());
+  const admin = canPublish(getAuthRole());
 
   const [revision, setRevision] = useState<Revision | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -48,6 +48,8 @@ export function PublishPage() {
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
+  const [versionLabel, setVersionLabel] = useState("");
+  const [savingVersion, setSavingVersion] = useState(false);
 
   const loadData = useCallback(async (revisionId: string) => {
     const [rev, draft, commentList] = await Promise.all([
@@ -58,7 +60,26 @@ export function PublishPage() {
     setRevision(rev);
     setMarkdown(draft.markdown);
     setComments(commentList);
+    setVersionLabel(rev.target_version_label ?? "");
   }, []);
+
+  async function handleSaveVersion() {
+    if (!id || !versionLabel.trim()) return;
+    setSavingVersion(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const updated = await api.updateRevisionMeta(id, {
+        target_version_label: versionLabel.trim(),
+      });
+      setRevision(updated);
+      setInfo("目标版本号已更新。");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "更新版本号失败");
+    } finally {
+      setSavingVersion(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -197,7 +218,43 @@ export function PublishPage() {
             仍有 {openCount} 条未处理意见，无法发布。
           </strong>
         )}
+        {!revision.target_version_label && (
+          <strong style={{ color: "var(--color-danger)", marginLeft: "0.5rem" }}>
+            目标版本号为空，发布前必须补充。
+          </strong>
+        )}
       </div>
+
+      {admin && (
+        <div className="card" style={{ marginBottom: "1.25rem" }}>
+          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1rem" }}>目标版本号</h2>
+          <form
+            className="toolbar"
+            style={{ alignItems: "flex-end" }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSaveVersion();
+            }}
+          >
+            <div className="form-group" style={{ margin: 0, flex: 1, maxWidth: 240 }}>
+              <label htmlFor="target_version_label">正式版本号</label>
+              <input
+                id="target_version_label"
+                value={versionLabel}
+                onChange={(e) => setVersionLabel(e.target.value)}
+                placeholder="例如 v2.0"
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn btn-secondary"
+              disabled={savingVersion || !versionLabel.trim()}
+            >
+              {savingVersion ? "保存中…" : "保存版本号"}
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: "1.25rem" }}>
         <h2 style={{ margin: "0 0 0.75rem", fontSize: "1rem" }}>最终正文（只读）</h2>
@@ -248,7 +305,7 @@ export function PublishPage() {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={publishLoading || openCount > 0}
+            disabled={publishLoading || openCount > 0 || !revision.target_version_label}
             onClick={() => void handlePublish()}
           >
             {publishLoading ? "发布中…" : "确认发布"}

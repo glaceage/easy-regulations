@@ -1,15 +1,16 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.db.session import get_db
 from apps.api.models.user import User
-from apps.api.schemas.notification import NotificationResponse
+from apps.api.schemas.notification import NotificationReadResponse, NotificationResponse
 from apps.api.schemas.reviewer import ReviewerAssignRequest, ReviewerResponse
-from apps.api.services import reviewers as reviewer_service
-from apps.api.services.auth import get_current_user
 from apps.api.services import notifications as notification_service
+from apps.api.services import reviewers as reviewer_service
+from apps.api.services import revisions as revision_service
+from apps.api.services.auth import get_current_user
 
 revision_router = APIRouter(prefix="/api/revisions", tags=["reviewers"])
 notification_router = APIRouter(prefix="/api/notifications", tags=["notifications"])
@@ -21,7 +22,7 @@ async def list_revision_reviewers(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
+    await revision_service.get_viewable_revision(db, revision_id, current_user)
     return await reviewer_service.list_reviewers(db, revision_id)
 
 
@@ -55,3 +56,12 @@ async def list_my_notifications(
     current_user: User = Depends(get_current_user),
 ):
     return await notification_service.list_notifications(db, current_user.id)
+
+
+@notification_router.post("/read", response_model=NotificationReadResponse)
+async def mark_notifications_read(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    marked = await notification_service.mark_all_read(db, current_user.id)
+    return NotificationReadResponse(marked=marked)

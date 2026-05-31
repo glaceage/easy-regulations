@@ -3,6 +3,8 @@ from __future__ import annotations
 import html
 import re
 
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)(?:\s+\{#([a-zA-Z0-9_-]+)\})?\s*$")
+
 _CHINESE_CSS = """
 @page {
     size: A4;
@@ -10,8 +12,10 @@ _CHINESE_CSS = """
 }
 body {
     font-family:
+        "WenQuanYi Zen Hei", "文泉驿正黑",
+        "Noto Sans CJK SC", "Noto Sans CJK JP",
         "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
-        "Noto Sans CJK SC", sans-serif;
+        sans-serif;
     font-size: 12pt;
     line-height: 1.8;
     color: #1a1a1a;
@@ -52,7 +56,7 @@ def _render_markdown_body(markdown: str) -> str:
             paragraph.clear()
 
     for line in lines:
-        heading_match = re.match(r"^(#{1,6})\s+(.+)$", line)
+        heading_match = _HEADING_RE.match(line)
         if heading_match:
             flush_paragraph()
             level = len(heading_match.group(1))

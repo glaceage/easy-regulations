@@ -11,3 +11,7 @@ class NotificationResponse(BaseModel):
     policy_id: str | None
     read: bool
     created_at: datetime
+
+
+class NotificationReadResponse(BaseModel):
+    marked: int

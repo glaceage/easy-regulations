@@ -75,6 +75,15 @@ export function ConsultationPage() {
           return;
         }
         setRevision(rev);
+        if (reviewerUser) {
+          const assignments = await api.listReviewAssignments();
+          if (cancelled) return;
+          const mine = assignments.find((a) => a.revision_id === id);
+          if (!mine) {
+            setError("您未被指定为该修订的评审人。请从「我的评审」进入被指派的任务。");
+            return;
+          }
+        }
         const draft = await api.getDraftMarkdown(id);
         if (cancelled) return;
         setMarkdown(draft.markdown);
@@ -88,7 +97,7 @@ export function ConsultationPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, loadComments]);
+  }, [id, loadComments, reviewerUser]);
 
   async function handleTransition(targetState: string) {
     if (!id) return;
@@ -153,9 +162,21 @@ export function ConsultationPage() {
   return (
     <>
       <p>
-        <Link to={`/policies/${revision.policy_id}`}>← 返回制度详情</Link>
-        {" · "}
-        <Link to={`/revisions/${revision.id}`}>起草工作台</Link>
+        {reviewerUser ? (
+          <>
+            <Link to="/reviews">← 我的评审</Link>
+            {" · "}
+            <Link to={`/policies/${revision.policy_id}`}>制度详情</Link>
+          </>
+        ) : (
+          <Link to={`/policies/${revision.policy_id}`}>← 制度详情</Link>
+        )}
+        {ownerLike && (
+          <>
+            {" · "}
+            <Link to={`/revisions/${revision.id}`}>起草工作台</Link>
+          </>
+        )}
       </p>
       <div className="toolbar">
         <h1 className="page-title" style={{ margin: 0, flex: 1 }}>

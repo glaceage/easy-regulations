@@ -5,22 +5,25 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.db.session import get_db
-from apps.api.models.user import User
+from apps.api.models.user import User, UserRole
 from apps.api.schemas.export import ImportDocxResponse
 from apps.api.schemas.revision import (
     DraftMarkdownResponse,
     DraftMarkdownUpdate,
     PublishResponse,
     RevisionCreate,
+    RevisionMetaUpdate,
     RevisionResponse,
     TransitionRequest,
 )
 from apps.api.services import jobs as jobs_service
 from apps.api.services import revisions as revision_service
-from apps.api.services.auth import get_current_user
+from apps.api.services.auth import get_current_user, require_roles
 from apps.api.services.storage import StorageService
 
 router = APIRouter(prefix="/api/revisions", tags=["revisions"])
+
+REVISION_AUTHOR_ROLES = (UserRole.OWNER, UserRole.POLICY_ADMIN, UserRole.SYS_ADMIN)
 
 _CONTENT_TYPES = {
     ".md": "text/markdown; charset=utf-8",
@@ -33,7 +36,7 @@ _CONTENT_TYPES = {
 async def create_revision(
     body: RevisionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(*REVISION_AUTHOR_ROLES)),
 ):
     return await revision_service.create_revision(db, body, current_user)
 
@@ -44,11 +47,17 @@ async def get_revision(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
-    revision = await revision_service.get_revision(db, revision_id)
-    if revision is None:
-        raise HTTPException(status_code=404, detail="修订任务不存在")
-    return revision
+    return await revision_service.get_viewable_revision(db, revision_id, current_user)
+
+
+@router.patch("/{revision_id}", response_model=RevisionResponse)
+async def update_revision_meta(
+    revision_id: uuid.UUID,
+    body: RevisionMetaUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await revision_service.update_revision_meta(db, revision_id, body, current_user)
 
 
 @router.post("/{revision_id}/publish", response_model=PublishResponse)
@@ -66,7 +75,7 @@ async def get_draft_markdown(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
+    await revision_service.get_viewable_revision(db, revision_id, current_user)
     markdown, sha = await revision_service.get_draft_markdown(db, revision_id)
     return DraftMarkdownResponse(markdown=markdown, content_sha256=sha)
 
@@ -91,10 +100,7 @@ async def download_revision_file(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
-    revision = await revision_service.get_revision(db, revision_id)
-    if revision is None:
-        raise HTTPException(status_code=404, detail="修订任务不存在")
+    revision = await revision_service.get_viewable_revision(db, revision_id, current_user)
 
     allowed_prefixes = (
         f"drafts/{revision.id}",

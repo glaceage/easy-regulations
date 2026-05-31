@@ -28,6 +28,11 @@ class RevisionResponse(BaseModel):
     updated_at: datetime
 
 
+class RevisionMetaUpdate(BaseModel):
+    change_brief: str | None = Field(default=None, max_length=2000)
+    target_version_label: str | None = Field(default=None, max_length=32)
+
+
 class TransitionRequest(BaseModel):
     target_state: RevisionState
 

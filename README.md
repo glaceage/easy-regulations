@@ -175,4 +175,4 @@ docs/superpowers/  Design specs
 
 ## License
 
-Internal use only — not for public redistribution.
+[MIT](LICENSE)

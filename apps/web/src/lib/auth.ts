@@ -34,3 +34,12 @@ export function isReviewer(role: UserRole | null): boolean {
 export function isPolicyAdmin(role: UserRole | null): boolean {
   return role === "policy_admin";
 }
+
+export function canPublish(role: UserRole | null): boolean {
+  return role === "policy_admin" || role === "sys_admin";
+}
+
+export function getHomeRoute(role: UserRole | null): string {
+  if (role === "reviewer") return "/reviews";
+  return "/policies";
+}

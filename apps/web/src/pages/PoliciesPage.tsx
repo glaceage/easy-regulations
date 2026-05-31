@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { Policy } from "../api/types";
+import { getAuthRole, isOwnerLike, isReviewer } from "../lib/auth";
 
 export function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const reviewer = isReviewer(getAuthRole());
+  const ownerLike = isOwnerLike(getAuthRole());
 
   useEffect(() => {
     let cancelled = false;
@@ -28,11 +31,22 @@ export function PoliciesPage() {
   return (
     <>
       <h1 className="page-title">制度库</h1>
-      <div className="toolbar">
-        <Link to="/admin/policies/new" className="btn btn-primary">
-          新建制度
-        </Link>
-      </div>
+      {reviewer && (
+        <div className="info-banner" style={{ marginBottom: "1rem" }}>
+          评审人请优先前往
+          <Link to="/reviews" style={{ marginLeft: "0.35rem" }}>
+            我的评审
+          </Link>
+          查看被指派的征求意见任务。
+        </div>
+      )}
+      {ownerLike && (
+        <div className="toolbar">
+          <Link to="/admin/policies/new" className="btn btn-primary">
+            新建制度
+          </Link>
+        </div>
+      )}
       {error && <div className="error-banner">{error}</div>}
       <div className="card">
         {loading ? (
@@ -66,9 +80,15 @@ export function PoliciesPage() {
                   <td>{p.category || "—"}</td>
                   <td>{new Date(p.updated_at).toLocaleString("zh-CN")}</td>
                   <td>
-                    <Link to={`/policies/${p.id}#revisions`} className="btn btn-primary" style={{ fontSize: 13 }}>
-                      修订 / AI 草案
-                    </Link>
+                    {ownerLike ? (
+                      <Link to={`/policies/${p.id}#revisions`} className="btn btn-primary" style={{ fontSize: 13 }}>
+                        修订 / AI 草案
+                      </Link>
+                    ) : (
+                      <Link to={`/policies/${p.id}`} className="btn btn-secondary" style={{ fontSize: 13 }}>
+                        查看详情
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -41,10 +41,23 @@ async def assert_can_enter_pending_publish(revision_id: uuid.UUID, db: AsyncSess
     await _assert_mandatory_reviewers_feedback(revision_id, db, comments)
 
 
+async def assert_consultation_complete(revision_id: uuid.UUID, db: AsyncSession) -> None:
+    """Closing consultation requires every mandatory reviewer to have responded."""
+    result = await db.execute(select(Comment).where(Comment.revision_id == revision_id))
+    comments = list(result.scalars().all())
+    await _assert_mandatory_reviewers_feedback(
+        revision_id,
+        db,
+        comments,
+        detail="结束征求意见前，所有必反馈评审人都必须提交意见",
+    )
+
+
 async def _assert_mandatory_reviewers_feedback(
     revision_id: uuid.UUID,
     db: AsyncSession,
     comments: list[Comment],
+    detail: str = "Cannot enter pending_publish: mandatory reviewers have not submitted feedback",
 ) -> None:
     """Mandatory assigned reviewers must have submitted at least one comment."""
     reviewer_result = await db.execute(
@@ -62,5 +75,5 @@ async def _assert_mandatory_reviewers_feedback(
     if missing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot enter pending_publish: mandatory reviewers have not submitted feedback",
+            detail=detail,
         )

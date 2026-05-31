@@ -472,6 +472,59 @@ select {
   white-space: nowrap;
 }
 
+.review-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.review-stat-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.review-stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.review-stat-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.review-badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.review-badge--awaiting {
+  background: #fff4e5;
+  color: #9a6700;
+}
+
+.review-badge--optional {
+  background: #eef4ff;
+  color: #1a4f8b;
+}
+
+.review-badge--submitted {
+  background: #e8f5ec;
+  color: #1a6b3c;
+}
+
+.review-badge--closed {
+  background: #f0f2f4;
+  color: #5c6773;
+}
+
 .form-group select {
   width: 100%;
   padding: 0.5rem 0.65rem;
