@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .DS_Store
+
+# Local walkthrough / internal notes (not for the repo)
+系统走查测试报告.md
