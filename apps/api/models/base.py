@@ -1,8 +1,14 @@
+import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, Enum, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+def pg_enum(enum_cls: type[enum.StrEnum]) -> Enum:
+    """Map StrEnum values (e.g. policy_admin) to PostgreSQL ENUM labels."""
+    return Enum(enum_cls, values_callable=lambda members: [member.value for member in members])
 
 
 class Base(DeclarativeBase):

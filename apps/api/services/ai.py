@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.ai.suggestions import apply_section_patch
 from apps.api.models.comment import Comment, CommentStatus
 from apps.api.models.llm_suggestion import LlmSuggestion, LlmSuggestionStatus
-from apps.api.models.revision import Revision
+from apps.api.models.revision import Revision, RevisionState
 from apps.api.models.user import User, UserRole
 from apps.api.services import jobs as jobs_service
 from apps.api.services import revisions as revision_service
@@ -69,8 +69,15 @@ async def accept_suggestion(
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="权限不足")
 
+    if revision.state not in {RevisionState.DRAFT, RevisionState.IN_REVISION}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="仅在起草或改稿阶段可采纳 AI 建议",
+        )
+
     storage = StorageService()
-    markdown = storage.get_bytes(revision.draft_markdown_key).decode("utf-8")
+    draft_key = revision.draft_markdown_key or f"drafts/{revision.id}.md"
+    markdown = revision_service._load_draft_markdown(storage, draft_key)
     updated = apply_section_patch(
         markdown,
         suggestion.section_id,
@@ -78,9 +85,8 @@ async def accept_suggestion(
         suggestion.suggested_markdown,
     )
     md_bytes = updated.encode("utf-8")
-    prefix = f"policies/{revision.policy_id}/{revision.id}/"
-    md_key = storage.put_bytes(md_bytes, suffix=".md", prefix=prefix)
-    revision.draft_markdown_key = md_key
+    storage.put_object(draft_key, md_bytes)
+    revision.draft_markdown_key = draft_key
     revision.draft_content_sha256 = hashlib.sha256(md_bytes).hexdigest()
 
     suggestion.status = LlmSuggestionStatus.ACCEPTED

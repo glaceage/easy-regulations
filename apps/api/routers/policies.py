@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.db.session import get_db
 from apps.api.models.user import User
 from apps.api.schemas.policy import PolicyCreate, PolicyResponse
+from apps.api.schemas.revision import RevisionResponse
 from apps.api.services import policies as policy_service
+from apps.api.services import revisions as revision_service
 from apps.api.services.auth import get_current_user
 
 router = APIRouter(prefix="/api/policies", tags=["policies"])
@@ -34,3 +36,16 @@ async def get_policy(policy_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     if policy is None:
         raise HTTPException(status_code=404, detail="制度不存在")
     return policy
+
+
+@router.get("/{policy_id}/revisions", response_model=list[RevisionResponse])
+async def list_policy_revisions(
+    policy_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _ = current_user
+    policy = await policy_service.get_policy(db, policy_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail="制度不存在")
+    return await revision_service.list_revisions_for_policy(db, policy_id)

@@ -46,11 +46,13 @@ def _unique_slug(title: str, seen: set[str]) -> str:
 
 
 def extract_section_body(markdown: str, section_id: str) -> str:
-    pattern = re.compile(rf"^#{{1,6}}\s+.+?\{{#{re.escape(section_id)}\}}\s*$", re.MULTILINE)
-    match = pattern.search(markdown)
-    if not match:
-        return ""
-    start = match.end()
-    next_heading = re.search(r"^#{1,6}\s+", markdown[start:], re.MULTILINE)
-    end = start + next_heading.start() if next_heading else len(markdown)
-    return markdown[start:end].strip()
+    for match in HEADING_RE.finditer(markdown):
+        title = match.group(2).strip()
+        sid = match.group(3) or _slugify(title)
+        if sid != section_id:
+            continue
+        start = match.end()
+        next_heading = re.search(r"^#{1,6}\s+", markdown[start:], re.MULTILINE)
+        end = start + next_heading.start() if next_heading else len(markdown)
+        return markdown[start:end].strip()
+    return ""

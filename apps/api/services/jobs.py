@@ -5,7 +5,7 @@ from typing import Any
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from arq.jobs import Job, JobStatus
+from arq.jobs import DeserializationError, Job, JobStatus
 
 from apps.api.config import Settings, get_settings
 
@@ -105,11 +105,12 @@ async def get_job_status(job_id: str, settings: Settings | None = None) -> dict[
     settings = settings or get_settings()
 
     if job_id.startswith("sync-"):
-        revision_id = job_id.removeprefix("sync-")
+        # Sync jobs encode either a revision_id or a comment_id in the suffix; we
+        # cannot tell which here, so expose a neutral id rather than mislabeling it.
         return {
             "job_id": job_id,
             "status": JobStatus.complete.value,
-            "result": {"revision_id": revision_id, "sync": True},
+            "result": {"id": job_id.removeprefix("sync-"), "sync": True},
             "error": None,
         }
 
@@ -126,13 +127,18 @@ async def get_job_status(job_id: str, settings: Settings | None = None) -> dict[
         }
 
         if status == JobStatus.complete:
-            info = await job.result_info()
+            try:
+                info = await job.result_info()
+            except DeserializationError:
+                payload["error"] = "后台任务执行失败"
+                return payload
+
             if info is not None:
                 if info.success:
                     payload["result"] = info.result
                 else:
                     result = info.result
-                    payload["error"] = str(result) if result is not None else "Job failed"
+                    payload["error"] = str(result) if result is not None else "后台任务执行失败"
         return payload
     finally:
         await pool.close()

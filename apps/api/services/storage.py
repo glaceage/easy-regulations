@@ -43,6 +43,22 @@ class StorageService:
         )
         return key
 
+    def put_object(self, key: str, data: bytes) -> str:
+        """Write ``data`` to a caller-provided key, overwriting in place.
+
+        Used for mutable objects (e.g. the working draft markdown) that must keep
+        a stable key across edits, unlike ``put_bytes`` which mints a new key.
+        """
+        content_sha256 = hashlib.sha256(data).hexdigest()
+        self._last_sha256 = content_sha256
+        self._client.put_object(
+            Bucket=self._settings.minio_bucket,
+            Key=key,
+            Body=data,
+            Metadata={"content-sha256": content_sha256},
+        )
+        return key
+
     def get_bytes(self, key: str) -> bytes:
         response = self._client.get_object(
             Bucket=self._settings.minio_bucket,

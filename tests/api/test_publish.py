@@ -15,6 +15,7 @@ from apps.api.models.base import Base
 from apps.api.models.comment import Comment, CommentStatus
 from apps.api.models.policy import Policy, PolicyStatus, PolicyVersion
 from apps.api.models.revision import Revision, RevisionState
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -25,6 +26,7 @@ TEST_TABLES = [
     PolicyVersion.__table__,
     Revision.__table__,
     Comment.__table__,
+    RevisionReviewer.__table__,
     AuditEvent.__table__,
 ]
 
@@ -95,6 +97,7 @@ def _mock_storage() -> MagicMock:
     storage.put_bytes.side_effect = lambda data, suffix, prefix="": (
         f"{prefix}mock{suffix}"
     )
+    storage.put_object.side_effect = lambda key, data: key
     storage.last_sha256 = "abc123"
     return storage
 

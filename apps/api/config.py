@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     xiaomi_base_url: str = "https://api.xiaomi.com/v1"
     xiaomi_api_key: str = ""
     xiaomi_model: str = "MiMo-V2.5-Pro"
+    llm_timeout_seconds: float = 120.0
+    llm_dev_mock: bool = False
 
     auth_mode: str = "dev"
 

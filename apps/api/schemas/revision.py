@@ -32,6 +32,15 @@ class TransitionRequest(BaseModel):
     target_state: RevisionState
 
 
+class DraftMarkdownResponse(BaseModel):
+    markdown: str
+    content_sha256: str
+
+
+class DraftMarkdownUpdate(BaseModel):
+    markdown: str
+
+
 class PublishResponse(BaseModel):
     revision_id: uuid.UUID
     state: RevisionState

@@ -11,6 +11,7 @@ from apps.api.models.audit import AuditEvent
 from apps.api.models.base import Base
 from apps.api.models.policy import Policy, PolicyVersion
 from apps.api.models.revision import Revision
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -20,6 +21,7 @@ TEST_TABLES = [
     Policy.__table__,
     PolicyVersion.__table__,
     Revision.__table__,
+    RevisionReviewer.__table__,
     AuditEvent.__table__,
 ]
 
@@ -119,3 +121,26 @@ async def test_invalid_transition_draft_to_published_returns_409(auth_client):
         json={"target_state": "published"},
     )
     assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_list_policy_revisions(auth_client):
+    policy = await auth_client.post(
+        "/api/policies",
+        json={"code": "HR-003", "title": "报销办法", "owner_department": "财务部"},
+    )
+    assert policy.status_code == 201
+    policy_id = policy.json()["id"]
+
+    revision = await auth_client.post(
+        "/api/revisions",
+        json={"policy_id": policy_id, "change_brief": "更新报销标准"},
+    )
+    assert revision.status_code == 201
+
+    resp = await auth_client.get(f"/api/policies/{policy_id}/revisions")
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) == 1
+    assert items[0]["id"] == revision.json()["id"]
+    assert items[0]["target_version_label"] == revision.json()["target_version_label"]

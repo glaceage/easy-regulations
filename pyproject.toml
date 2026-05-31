@@ -40,6 +40,9 @@ dev = [
 where = ["."]
 include = ["apps*"]
 
+[tool.setuptools.package-data]
+"apps.api.ai" = ["templates/*.yaml"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"

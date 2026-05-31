@@ -1,11 +1,11 @@
 import enum
 import uuid
 
-from sqlalchemy import Enum, String
+from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from apps.api.models.base import Base, TimestampMixin
+from apps.api.models.base import Base, TimestampMixin, pg_enum
 
 
 class UserRole(enum.StrEnum):
@@ -23,6 +23,6 @@ class User(Base, TimestampMixin):
     username: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(256))
     department: Mapped[str] = mapped_column(String(256), default="")
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.READER)
+    role: Mapped[UserRole] = mapped_column(pg_enum(UserRole), default=UserRole.READER)
     password_hash: Mapped[str] = mapped_column(String(256), default="")
     is_active: Mapped[bool] = mapped_column(default=True)

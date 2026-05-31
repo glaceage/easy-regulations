@@ -12,6 +12,7 @@ from apps.api.models.base import Base
 from apps.api.models.comment import Comment
 from apps.api.models.policy import Policy, PolicyVersion
 from apps.api.models.revision import Revision
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -22,6 +23,7 @@ TEST_TABLES = [
     PolicyVersion.__table__,
     Revision.__table__,
     Comment.__table__,
+    RevisionReviewer.__table__,
     AuditEvent.__table__,
 ]
 
@@ -76,6 +78,15 @@ async def auth_client():
                 display_name="经办人",
                 department="人力部",
                 role=UserRole.OWNER,
+                password_hash=pwd.hash("secret"),
+            )
+        )
+        session.add(
+            User(
+                username="reviewer1",
+                display_name="评审人",
+                department="法务部",
+                role=UserRole.REVIEWER,
                 password_hash=pwd.hash("secret"),
             )
         )
@@ -140,3 +151,21 @@ async def test_resolved_comments_allow_pending_publish(auth_client, revision_in_
     )
     assert resp.status_code == 200
     assert resp.json()["state"] == "pending_publish"
+
+
+@pytest.mark.asyncio
+async def test_mandatory_reviewer_without_feedback_blocks_pending_publish(
+    auth_client, revision_in_revision
+):
+    assign = await auth_client.post(
+        f"/api/revisions/{revision_in_revision}/reviewers",
+        json={"username": "reviewer1", "is_mandatory": True},
+    )
+    assert assign.status_code == 201
+
+    resp = await auth_client.post(
+        f"/api/revisions/{revision_in_revision}/transition",
+        json={"target_state": "pending_publish"},
+    )
+    assert resp.status_code == 409
+    assert "mandatory" in resp.json()["detail"].lower()

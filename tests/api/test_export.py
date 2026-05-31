@@ -14,6 +14,7 @@ from apps.api.models.audit import AuditEvent
 from apps.api.models.base import Base
 from apps.api.models.policy import Policy, PolicyVersion
 from apps.api.models.revision import Revision
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -23,6 +24,7 @@ TEST_TABLES = [
     Policy.__table__,
     PolicyVersion.__table__,
     Revision.__table__,
+    RevisionReviewer.__table__,
     AuditEvent.__table__,
 ]
 

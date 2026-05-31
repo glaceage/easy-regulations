@@ -1,17 +1,19 @@
-# Easy Regulations — 企业制度修订管理平台
+# Easy Regulations
 
-面向企业内部的制度（规章）全生命周期管理平台：以 Markdown 为中心起草、征求意见、LLM 辅助改稿、发布 PDF，并保留完整审计轨迹。支持私有化部署。
+**[中文文档](README.zh-CN.md)**
 
-## 架构概览
+Enterprise policy revision platform for drafting regulations in Markdown, multi-department consultation, LLM-assisted rewriting, PDF publishing, and full audit trails. Designed for private/on-prem deployment.
 
-| 组件 | 技术 | 职责 |
-|------|------|------|
-| API | FastAPI + SQLAlchemy 2 | 认证、制度库、修订工作流、意见、导出、AI 接口 |
-| Worker | ARQ | docx→md、md→pdf、LLM 分段起草与意见改稿 |
-| Web | React 18 + Vite + TypeScript | 中文管理界面 |
-| 数据库 | PostgreSQL 16 | 用户、制度元数据、修订状态、审计 |
-| 对象存储 | MinIO (S3 兼容) | Markdown / PDF / docx 文件 |
-| 队列 | Redis 7 | ARQ 任务队列 |
+## Architecture
+
+| Component | Stack | Role |
+|-----------|-------|------|
+| API | FastAPI + SQLAlchemy 2 | Auth, policy library, revision workflow, comments, export, AI endpoints |
+| Worker | ARQ | docx→md, md→pdf, LLM draft & comment-driven patches |
+| Web | React 18 + Vite + TypeScript | Chinese UI (bilingual README) |
+| Database | PostgreSQL 16 | Users, policies, revision state, audit |
+| Object storage | MinIO (S3-compatible) | Markdown / PDF / docx |
+| Queue | Redis 7 | ARQ job queue |
 
 ```
 ┌─────────┐     ┌─────────┐     ┌──────────┐
@@ -27,114 +29,150 @@
                 └─────────┘
 ```
 
-## 快速开始
+## Revision workflow
 
-### 1. Python 环境
+| State | Page | Owner actions |
+|-------|------|----------------|
+| `draft` | Revision workspace | Edit Markdown, AI draft, save, **submit for consultation** |
+| `in_consultation` | Consultation | Assign reviewers; reviewers comment by **section title** (not raw IDs) |
+| `in_revision` | Revision workspace | Edit draft, resolve comments, AI patches, submit for publish |
+| `pending_publish` | Publish review | Admin preview PDF and publish |
+| `published` | Read-only snapshot | View final Markdown / PDF |
+
+Headings in drafts automatically receive stable `{#section_id}` anchors on save so comments and AI patches stay anchored to the right clause.
+
+## Quick start
+
+### 1. Python environment
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-cp .env.example .env        # 按需修改
+cp .env.example .env        # edit as needed
 ```
 
-### 2. 启动基础设施（Docker Compose）
+### 2. Start the stack (Docker Compose)
+
+Run from the **repository root**. Do **not** execute the YAML file directly:
 
 ```bash
 make up
-# 或: docker compose --project-directory . -f deploy/docker-compose.yml up -d --build
 ```
 
-服务入口：
-
-- 应用（Nginx 反代）：http://localhost:8080
-- MinIO 控制台：http://localhost:9001
-
-首次启动后执行数据库迁移与种子数据：
+Equivalent:
 
 ```bash
-alembic upgrade head
-python scripts/seed_dev.py
+docker compose --project-directory . -f deploy/docker-compose.yml up -d --build
 ```
 
-### 3. 本地开发 API
+Common mistake (causes `permission denied`):
+
+```bash
+# Wrong — treats the config file as a shell command
+deploy/docker-compose.yml up -d --build
+```
+
+Endpoints:
+
+- App (via Nginx): http://localhost:8080
+- MinIO console: http://localhost:9001
+
+The API container runs `alembic upgrade head` on start. Seed dev data once:
+
+```bash
+# Option A: on the host (.env DATABASE_URL → localhost:5432)
+alembic upgrade head
+python scripts/seed_dev.py
+
+# Option B: inside Docker (recommended)
+docker compose --project-directory . -f deploy/docker-compose.yml run --rm api python scripts/seed_dev.py
+```
+
+### 3. Local API development
 
 ```bash
 make run-api
-# API 文档: http://localhost:8000/docs
+# OpenAPI: http://localhost:8000/docs
 ```
 
-### 4. 前端开发
+### 4. Frontend development
 
 ```bash
 cd apps/web
 npm install
 npm run dev
-# 默认: http://localhost:5173
+# http://localhost:5173
 ```
 
-### 5. 运行测试
+### 5. Tests
 
 ```bash
 make test
-# 或: pytest tests/ -v
+# or: SYNC_JOBS=1 pytest tests/ -q
 ```
 
-## 开发种子账号
+## Dev seed accounts
 
-运行 `python scripts/seed_dev.py` 后可用以下账号登录（密码均为 `dev123`）：
+After `seed_dev.py`, log in with password **`dev123`**:
 
-| 用户名 | 角色 | 说明 |
-|--------|------|------|
-| `admin` | policy_admin | 制度管理员，可发布 |
-| `owner1` | owner | 经办人，负责修订起草 |
-| `reviewer1` | reviewer | 审核人，可提交意见 |
+| Username | Role | Purpose |
+|----------|------|---------|
+| `admin` | policy_admin | Publish approved revisions |
+| `owner1` | owner | Draft and manage revisions |
+| `reviewer1` | reviewer | Submit consultation comments |
 
-示例数据：制度 **HR-001 考勤管理办法**，含已发布版本 **v1.0** 与处于 **draft** 状态的修订任务（目标版本 v2.0）。
+Sample data: policy **HR-001 Attendance Policy**, published **v1.0**, plus a **draft** revision targeting **v2.0**.
 
-## Makefile 常用命令
+## Makefile
 
-| 命令 | 说明 |
-|------|------|
+| Command | Description |
+|---------|-------------|
 | `make install` | `pip install -e ".[dev]"` |
-| `make test` | 运行 pytest |
-| `make run-api` | 本地启动 API（热重载） |
-| `make lint` | ruff 代码检查 |
-| `make up` | Docker Compose 启动全栈 |
-| `make down` | Docker Compose 停止并清理 |
+| `make test` | Run pytest |
+| `make run-api` | API with hot reload |
+| `make lint` | ruff check |
+| `make up` | Build and start full Docker stack |
+| `make down` | Stop Docker stack |
 
-## 环境变量
+## Environment variables
 
-复制 `.env.example` 为 `.env` 后配置：
+Copy `.env.example` to `.env`:
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/easy_regulations` | PostgreSQL 连接串 |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis 连接串 |
-| `JWT_SECRET` | `change-me-in-production` | JWT 签名密钥 |
-| `JWT_ALGORITHM` | `HS256` | JWT 算法 |
-| `JWT_EXPIRE_MINUTES` | `60` | Token 有效期（分钟） |
-| `MINIO_ENDPOINT` | `http://localhost:9000` | MinIO / S3 端点 |
-| `MINIO_ACCESS_KEY` | `minioadmin` | 对象存储 Access Key |
-| `MINIO_SECRET_KEY` | `minioadmin` | 对象存储 Secret Key |
-| `MINIO_BUCKET` | `easy-regulations` | 存储桶名称 |
-| `MINIO_REGION` | `us-east-1` | S3 区域 |
-| `XIAOMI_BASE_URL` | `https://api.xiaomi.com/v1` | LLM 网关地址 |
-| `XIAOMI_API_KEY` | （空） | LLM API Key |
-| `XIAOMI_MODEL` | `MiMo-V2.5-Pro` | LLM 模型名 |
-| `AUTH_MODE` | `dev` | 认证模式：`dev`（本地账号）或 `ldap`（预留） |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/easy_regulations` | PostgreSQL |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis |
+| `JWT_SECRET` | `change-me-in-production` | JWT signing secret |
+| `JWT_ALGORITHM` | `HS256` | JWT algorithm |
+| `JWT_EXPIRE_MINUTES` | `60` | Token TTL (minutes) |
+| `MINIO_ENDPOINT` | `http://localhost:9000` | MinIO / S3 endpoint |
+| `MINIO_ACCESS_KEY` | `minioadmin` | Access key |
+| `MINIO_SECRET_KEY` | `minioadmin` | Secret key |
+| `MINIO_BUCKET` | `easy-regulations` | Bucket name |
+| `MINIO_REGION` | `us-east-1` | S3 region |
+| `XIAOMI_BASE_URL` | `https://api.xiaomi.com/v1` | LLM gateway URL |
+| `XIAOMI_API_KEY` | (empty) | LLM API key |
+| `XIAOMI_MODEL` | `MiMo-V2.5-Pro` | Model name |
+| `AUTH_MODE` | `dev` | `dev` (local accounts) or `ldap` (reserved) |
 
-## 目录结构
+## Repository layout
 
 ```
-apps/api/          FastAPI 后端
-apps/worker/       ARQ 异步任务
-apps/web/          React 前端
-deploy/            Docker Compose 与部署配置
-scripts/           开发与运维脚本
-tests/             pytest 测试
+apps/api/          FastAPI backend
+apps/worker/       ARQ workers
+apps/web/          React frontend
+deploy/            Docker Compose & deployment
+scripts/           Dev/ops scripts
+tests/             pytest suite
+docs/superpowers/  Design specs
 ```
 
-## 许可证
+## Documentation
 
-内部项目，仅供组织内部使用。
+- [Policy revision platform design (中文)](docs/superpowers/specs/2026-05-28-policy-revision-platform-design.md)
+- [Revision workflow UI spec (中文)](docs/superpowers/specs/2026-05-28-revision-workflow-ui-spec.md)
+
+## License
+
+Internal use only — not for public redistribution.

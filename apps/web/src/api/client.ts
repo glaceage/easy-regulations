@@ -1,9 +1,18 @@
 import type {
   Comment,
+  CommentUpdate,
   DraftJobResponse,
+  DraftMarkdown,
+  ImportDocxResponse,
+  JobStatus,
   LlmSuggestion,
+  NotificationItem,
   Policy,
+  PolicyCreate,
+  PublishRequestResponse,
+  PublishResponse,
   Revision,
+  RevisionReviewer,
   TokenResponse,
 } from "./types";
 
@@ -37,6 +46,9 @@ async function parseError(res: Response): Promise<string> {
   } catch {
     /* ignore */
   }
+  if (res.status >= 500) {
+    return `服务器错误 (${res.status})，请稍后重试或查看后台日志`;
+  }
   return res.statusText || `请求失败 (${res.status})`;
 }
 
@@ -55,11 +67,34 @@ async function request<T>(
   }
 
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (res.status === 401 && auth) {
+    clearToken();
+    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.assign(`/login?expired=1&from=${returnTo}`);
+    throw new Error("登录已过期，请重新登录");
+  }
   if (!res.ok) {
     throw new Error(await parseError(res));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+async function requestBlob(path: string): Promise<Blob> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (res.status === 401) {
+    clearToken();
+    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.assign(`/login?expired=1&from=${returnTo}`);
+    throw new Error("登录已过期，请重新登录");
+  }
+  if (!res.ok) {
+    throw new Error(await parseError(res));
+  }
+  return res.blob();
 }
 
 export const api = {
@@ -77,6 +112,10 @@ export const api = {
 
   getPolicy(id: string) {
     return request<Policy>(`/policies/${id}`, { auth: false });
+  },
+
+  listPolicyRevisions(policyId: string) {
+    return request<Revision[]>(`/policies/${policyId}/revisions`);
   },
 
   getRevision(id: string) {
@@ -100,7 +139,112 @@ export const api = {
     });
   },
 
+  getJobStatus(jobId: string) {
+    return request<JobStatus>(`/jobs/${jobId}`);
+  },
+
   listAiSuggestions(revisionId: string) {
     return request<LlmSuggestion[]>(`/revisions/${revisionId}/ai/suggestions`);
+  },
+
+  transitionRevision(revisionId: string, targetState: string) {
+    return request<Revision>(`/revisions/${revisionId}/transition`, {
+      method: "POST",
+      body: JSON.stringify({ target_state: targetState }),
+    });
+  },
+
+  getDraftMarkdown(revisionId: string) {
+    return request<DraftMarkdown>(`/revisions/${revisionId}/draft-markdown`);
+  },
+
+  saveDraftMarkdown(revisionId: string, markdown: string) {
+    return request<DraftMarkdown>(`/revisions/${revisionId}/draft-markdown`, {
+      method: "PUT",
+      body: JSON.stringify({ markdown }),
+    });
+  },
+
+  acceptSuggestion(suggestionId: string) {
+    return request<LlmSuggestion>(`/ai/suggestions/${suggestionId}/accept`, {
+      method: "POST",
+    });
+  },
+
+  updateComment(commentId: string, update: CommentUpdate) {
+    return request<Comment>(`/comments/${commentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(update),
+    });
+  },
+
+  enqueueCommentPatch(commentId: string) {
+    return request<DraftJobResponse>(`/comments/${commentId}/ai/patch`, {
+      method: "POST",
+    });
+  },
+
+  publishRevision(revisionId: string) {
+    return request<PublishResponse>(`/revisions/${revisionId}/publish`, {
+      method: "POST",
+    });
+  },
+
+  requestPublishPdf(revisionId: string) {
+    return request<PublishRequestResponse>(`/revisions/${revisionId}/publish-request`, {
+      method: "POST",
+    });
+  },
+
+  createRevision(policyId: string, changeBrief: string, targetVersionLabel: string) {
+    return request<Revision>("/revisions", {
+      method: "POST",
+      body: JSON.stringify({
+        policy_id: policyId,
+        change_brief: changeBrief,
+        target_version_label: targetVersionLabel,
+      }),
+    });
+  },
+
+  createPolicy(body: PolicyCreate) {
+    return request<Policy>("/policies", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  fetchRevisionFile(revisionId: string, key: string) {
+    return requestBlob(`/revisions/${revisionId}/files?key=${encodeURIComponent(key)}`);
+  },
+
+  importDocx(revisionId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return request<ImportDocxResponse>(`/revisions/${revisionId}/import-docx`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  listReviewers(revisionId: string) {
+    return request<RevisionReviewer[]>(`/revisions/${revisionId}/reviewers`);
+  },
+
+  assignReviewer(revisionId: string, username: string, isMandatory = true) {
+    return request<RevisionReviewer>(`/revisions/${revisionId}/reviewers`, {
+      method: "POST",
+      body: JSON.stringify({ username, is_mandatory: isMandatory }),
+    });
+  },
+
+  removeReviewer(revisionId: string, reviewerId: string) {
+    return request<void>(`/revisions/${revisionId}/reviewers/${reviewerId}`, {
+      method: "DELETE",
+    });
+  },
+
+  listNotifications() {
+    return request<NotificationItem[]>("/notifications");
   },
 };

@@ -7,6 +7,8 @@ from apps.api.routers.comments import revision_router as comments_revision_route
 from apps.api.routers.export import router as export_router
 from apps.api.routers.policies import router as policies_router
 from apps.api.routers.revisions import router as revisions_router
+from apps.api.routers.reviewers import notification_router
+from apps.api.routers.reviewers import revision_router as reviewers_revision_router
 
 
 def create_app() -> FastAPI:
@@ -18,6 +20,8 @@ def create_app() -> FastAPI:
     app.include_router(comment_router)
     app.include_router(export_router)
     app.include_router(ai_router)
+    app.include_router(reviewers_revision_router)
+    app.include_router(notification_router)
 
     @app.get("/health")
     @app.get("/api/health")

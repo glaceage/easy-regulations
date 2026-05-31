@@ -13,6 +13,12 @@ from openai import AsyncOpenAI
 from sqlalchemy import select
 
 from apps.api.ai.client import get_llm_client
+from apps.api.ai.dev_mock import (
+    DEV_MOCK_MODEL,
+    llm_dev_mock_enabled,
+    mock_comment_patch_suggestions,
+    mock_draft_suggestions,
+)
 from apps.api.ai.suggestions import parse_comment_patch_suggestion, parse_draft_suggestions
 from apps.api.config import get_settings
 from apps.api.db.session import SessionLocal
@@ -71,6 +77,14 @@ async def call_draft_llm(
     section_body: str,
     model_name: str,
 ) -> list[dict[str, Any]]:
+    if llm_dev_mock_enabled():
+        return mock_draft_suggestions(
+            change_brief=change_brief,
+            section_id=section_id,
+            section_title=section_title,
+            section_body=section_body,
+        )
+
     template = load_draft_template()
     user_message = template["user_template"].format(
         change_brief=change_brief,
@@ -108,6 +122,14 @@ async def call_comment_patch_llm(
     section_body: str,
     model_name: str,
 ) -> list[dict[str, Any]]:
+    if llm_dev_mock_enabled():
+        return mock_comment_patch_suggestions(
+            comment_body=comment_body,
+            section_id=section_id,
+            section_title=section_title,
+            section_body=section_body,
+        )
+
     template = load_comment_patch_template()
     user_message = template["user_template"].format(
         comment_body=comment_body,
@@ -148,7 +170,7 @@ async def comment_patch_task(ctx: dict[str, Any], comment_id: str) -> dict[str, 
     settings = get_settings()
     storage = StorageService()
     client = get_llm_client()
-    model_name = settings.xiaomi_model
+    model_name = DEV_MOCK_MODEL if llm_dev_mock_enabled() else settings.xiaomi_model
 
     async with SessionLocal() as db:
         result = await db.execute(select(Comment).where(Comment.id == cid))
@@ -240,7 +262,7 @@ async def generate_draft_task(ctx: dict[str, Any], revision_id: str) -> dict[str
     settings = get_settings()
     storage = StorageService()
     client = get_llm_client()
-    model_name = settings.xiaomi_model
+    model_name = DEV_MOCK_MODEL if llm_dev_mock_enabled() else settings.xiaomi_model
 
     async with SessionLocal() as db:
         result = await db.execute(select(Revision).where(Revision.id == rid))

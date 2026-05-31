@@ -21,6 +21,7 @@ from apps.api.models.llm_suggestion import (
 )
 from apps.api.models.policy import Policy, PolicyVersion
 from apps.api.models.revision import Revision, RevisionState
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,6 +32,7 @@ TEST_TABLES = [
     PolicyVersion.__table__,
     Revision.__table__,
     Comment.__table__,
+    RevisionReviewer.__table__,
     AuditEvent.__table__,
     LlmSuggestion.__table__,
 ]
@@ -151,7 +153,7 @@ async def ai_client():
 async def test_accept_suggestion_updates_markdown_in_storage(ai_client):
     mock_storage = MagicMock()
     mock_storage.get_bytes.return_value = SAMPLE_MARKDOWN.encode("utf-8")
-    mock_storage.put_bytes.return_value = "policies/x/y/updated.md"
+    mock_storage.put_object.return_value = "drafts/sample.md"
     mock_storage.last_sha256 = "newsha256"
 
     with patch("apps.api.services.ai.StorageService", return_value=mock_storage):
@@ -162,7 +164,7 @@ async def test_accept_suggestion_updates_markdown_in_storage(ai_client):
     assert body["status"] == "accepted"
     assert body["section_id"] == "sec-zongze"
 
-    saved_md = mock_storage.put_bytes.call_args[0][0].decode("utf-8")
+    saved_md = mock_storage.put_object.call_args[0][1].decode("utf-8")
     assert "新总则内容。" in saved_md
     assert "旧总则内容。" not in saved_md
     expected_sha = hashlib.sha256(saved_md.encode("utf-8")).hexdigest()
@@ -170,7 +172,7 @@ async def test_accept_suggestion_updates_markdown_in_storage(ai_client):
     async with ai_client.session_factory() as session:
         result = await session.execute(select(Revision))
         revision = result.scalar_one()
-        assert revision.draft_markdown_key == "policies/x/y/updated.md"
+        assert revision.draft_markdown_key == "drafts/sample.md"
         assert revision.draft_content_sha256 == expected_sha
 
 

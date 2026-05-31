@@ -1,9 +1,12 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { api, isAuthenticated, setToken } from "../api/client";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get("expired") === "1";
+  const returnTo = searchParams.get("from") || "/policies";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +23,7 @@ export function LoginPage() {
     try {
       const { access_token } = await api.login(username, password);
       setToken(access_token);
-      navigate("/policies");
+      navigate(returnTo.startsWith("/") ? returnTo : "/policies");
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {
@@ -33,6 +36,9 @@ export function LoginPage() {
       <div className="card login-card">
         <h1>制度修订管理平台</h1>
         <p className="subtitle">请使用企业账号登录</p>
+        {sessionExpired && (
+          <div className="info-banner">登录已过期或数据已重置，请重新登录。</div>
+        )}
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">

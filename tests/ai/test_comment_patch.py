@@ -21,6 +21,7 @@ from apps.api.models.llm_suggestion import (
 )
 from apps.api.models.policy import Policy, PolicyVersion
 from apps.api.models.revision import Revision, RevisionState
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 from apps.worker.tasks.llm import comment_patch_task
 
@@ -32,6 +33,7 @@ TEST_TABLES = [
     PolicyVersion.__table__,
     Revision.__table__,
     Comment.__table__,
+    RevisionReviewer.__table__,
     AuditEvent.__table__,
     LlmSuggestion.__table__,
 ]
@@ -292,7 +294,7 @@ async def test_accept_patch_updates_markdown_and_comment_status(patch_client):
 
     mock_storage = MagicMock()
     mock_storage.get_bytes.return_value = SAMPLE_MARKDOWN.encode("utf-8")
-    mock_storage.put_bytes.return_value = "policies/x/y/updated.md"
+    mock_storage.put_object.return_value = "drafts/sample.md"
 
     with patch("apps.api.services.ai.StorageService", return_value=mock_storage):
         resp = await patch_client.post(f"/api/ai/suggestions/{suggestion_id}/accept")
@@ -300,7 +302,7 @@ async def test_accept_patch_updates_markdown_and_comment_status(patch_client):
     assert resp.status_code == 200
     assert resp.json()["status"] == "accepted"
 
-    saved_md = mock_storage.put_bytes.call_args[0][0].decode("utf-8")
+    saved_md = mock_storage.put_object.call_args[0][1].decode("utf-8")
     assert "新总则内容。" in saved_md
     assert "旧总则内容。" not in saved_md
     expected_sha = hashlib.sha256(saved_md.encode("utf-8")).hexdigest()
@@ -312,5 +314,5 @@ async def test_accept_patch_updates_markdown_and_comment_status(patch_client):
 
         revision_result = await session.execute(select(Revision))
         revision = revision_result.scalar_one()
-        assert revision.draft_markdown_key == "policies/x/y/updated.md"
+        assert revision.draft_markdown_key == "drafts/sample.md"
         assert revision.draft_content_sha256 == expected_sha

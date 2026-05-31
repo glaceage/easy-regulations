@@ -152,6 +152,9 @@
 
 ### 5.1 修订任务状态机
 
+> **UI/动线补充：** 各阶段页面布局、角色操作、入口衔接见  
+> [修订工作流与界面规格](./2026-05-28-revision-workflow-ui-spec.md)（2026-05-30）。
+
 ```text
 DRAFT → IN_CONSULTATION → IN_REVISION → PENDING_PUBLISH → PUBLISHED
                                               ↘ CANCELLED（发布前任意阶段）

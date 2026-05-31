@@ -13,6 +13,7 @@ from apps.api.models.revision import (
     RevisionState,
     can_transition,
 )
+from apps.api.models.revision_reviewer import RevisionReviewer
 from apps.api.models.user import User, UserRole
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     "PolicyStatus",
     "PolicyVersion",
     "Revision",
+    "RevisionReviewer",
     "RevisionState",
     "TimestampMixin",
     "User",
